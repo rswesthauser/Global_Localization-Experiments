@@ -1,0 +1,29 @@
+---
+title: "Experiments planning"
+author: "Ricardo Westhauser"
+date: "28/10/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this
+
+
+```{r}
+d4 <- fac.design(nfactors= 3, replications= 1, repeat.only= FALSE, blocks= 1, randomize= TRUE,seed= 17366, 
+                 nlevels=c( 3,12,21  ), factor.names=list(VI=c("NDVI","NDRE","NDVV_RED_and_REG"), Alfa=c("0","0.1","0.2","0.3","0.4","0.4","0.5","0.6","0.7","0.8","0.9","1"), Beta=c(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20))); 
+d4;
+```
+
+
+```{r}
+d4[sample(size=10, replace=FALSE,1:nrow(d4)),]
+```
+
