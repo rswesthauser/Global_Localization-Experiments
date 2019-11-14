@@ -5,25 +5,285 @@ date: "28/10/2019"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+Doing some configuration
+```{r}
+nRuns <- 30  #Number of runs for each set of parameters
+gtFileName = "UFRGS_VET_100M_GT_390_613.txt"
+escalaPxM = 0.10
+divMultExcalaZ = 135
+zEscalaMetros = 1.083333333   
+altitudeFotoRefEscala = 101.09999847412
+imgCount = 224 #Trajectory size in image count
+vecColor <- c("red", "black", "darkgreen", "cadetblue", "cyan", "azure3", "blue2", "brown2", "darkgoldenrod1", "darkolivegreen2", "darkorange1", "dodgerblue", "darkorchid1", "deeppink2", "gold1", "darkred", "deeppink4", "burlywood2", "bisque1", "beige", "aquamarine", "green", "darkslategray", "gold4", "chocolate1", "cornsilk3" )
 ```
 
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this
-
+Creating a Full Factorial Design of the experiment:
+We're currently working with two factors, each one with 11 levels.
 
 ```{r}
-d4 <- fac.design(nfactors= 3, replications= 1, repeat.only= FALSE, blocks= 1, randomize= TRUE,seed= 17366, 
-                 nlevels=c( 3,12,21  ), factor.names=list(VI=c("NDVI","NDRE","NDVV_RED_and_REG"), Alfa=c("0","0.1","0.2","0.3","0.4","0.4","0.5","0.6","0.7","0.8","0.9","1"), Beta=c(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20))); 
-d4;
+library(DoE.base)
+fullFac <- fac.design(nfactors= 2, replications= 1, repeat.only= FALSE, blocks= 1, randomize= FALSE,seed= 17366, 
+                 nlevels = c(11, 11), factor.names=list( Alfa=c("0","0.1","0.2","0.3","0.4","0.5","0.6","0.7","0.8","0.9","1"), Beta=c("0","0.1","0.2","0.3","0.4","0.5","0.6","0.7","0.8","0.9","1"))); 
 ```
 
+As we can see, a Full Factorial will have 121 different factor level combinations. I will reduce it to 25 combinations:
+```{r}
+   ## a full quadratic model with constraint in three quantitative factors 
+library(DoE.wrapper)
+   plan <- Dopt.design(25,factor.names=list(Alfa=c(0,1), Beta=c(0,1)),
+                          nlevels=c(10,10), 
+                          formula=~quad(.))
+
+   plan
+   cor(plan)
+   y <- rnorm(25)
+   r.plan <- add.response(plan, y)
+   plot(plan)
+   configSize = nrow(plan)
+   
+   c <- 1
+   vecConfigs <- vector(mode = "list", length = configSize)
+   configPath <- vector(mode = "list", length = configSize)
+   
+   #while (c <= configSize) 
+   #{
+   #   vecConfigs[c] <- paste("alfa_", format(round(plan[c,1],7), nsmall = 0), "__beta_", format(round(plan[c,2],7), nsmall = 0), sep="")
+   #   configPath[c] <- paste("UFRGS_VET_V3_11_08_2011/traj/", vecConfigs[c], sep="")
+   #   c = c+1
+   #}
+   
+
+vecConfigs[1] = "alfa_0.4444444__beta_0.4444444"
+vecConfigs[2] = "alfa_0__beta_0.5555556"		
+vecConfigs[3] = "alfa_0.2222222__beta_1"		
+vecConfigs[4] = "alfa_0.8888889__beta_1"		
+vecConfigs[5] = "alfa_0.4444444__beta_0"		
+vecConfigs[6] = "alfa_0.5555556__beta_0"		
+vecConfigs[7] = "alfa_1__beta_0.8888889"		
+vecConfigs[8] = "alfa_0.5555556__beta_0.5555556"		
+vecConfigs[9] = "alfa_0__beta_0"		
+vecConfigs[10] = "alfa_0__beta_0.1111111"	
+vecConfigs[11] = "alfa_0.8888889__beta_0"		
+vecConfigs[12] = "alfa_0.4444444__beta_0.5555556"		
+vecConfigs[13] = "alfa_0.5555556__beta_0.4444444"		
+vecConfigs[14] = "alfa_0.1111111__beta_1"		
+vecConfigs[15] = "alfa_0.1111111__beta_0"		
+vecConfigs[16] = "alfa_1__beta_1"		
+vecConfigs[17] = "alfa_1__beta_0.1111111"		
+vecConfigs[18] = "alfa_0__beta_0.8888889"		
+vecConfigs[19] = "alfa_0.6666667__beta_1"		
+vecConfigs[20] = "alfa_0.5555556__beta_1"
+vecConfigs[21] = "alfa_0__beta_0.4444444"		
+vecConfigs[22] = "alfa_1__beta_0.4444444"		
+vecConfigs[23] = "alfa_1__beta_0.5555556"		
+vecConfigs[24] = "alfa_0__beta_1"		
+vecConfigs[25] = "alfa_1__beta_0"
+
+
+
+#vecConfigs[26] = "alfa_0.2222222__beta_0"
+#vecConfigs[27] = "alfa_0.4444444__beta_1"
+#vecConfigs[28] = "alfa_0.6666667__beta_0"
+
+while (c <= configSize) 
+   {
+      configPath[c] <- paste("UFRGS_VET_V3_11_08_2011/traj/", vecConfigs[c], sep="")
+      c = c+1
+   }
+
+   
+```
+
+Reading the ground truth file:
 
 ```{r}
-d4[sample(size=10, replace=FALSE,1:nrow(d4)),]
+groundTruth <- read.table("UFRGS_VET_100M_GT_390_613.txt", 
+                 header = FALSE)
+colnames(groundTruth) [1:4] <- c("X (px)","Y (px)","Z (m)","Yaw (deg)")
 ```
 
+Reading the experiment files:
+
+```{r}
+library(plyr)
+library(readr)
+
+experiments <- vector(mode = "list", length = configSize) #Experiments list (one for each config)
+
+c <- 1
+while (c <= configSize)
+{
+   expDir <- paste("UFRGS_VET_V3_11_08_2011/traj/", vecConfigs[c], sep="")
+   myfiles = list.files(path=expDir, pattern="*txt", full.names=TRUE)
+   
+   r <- 1
+   while(r <= nRuns)
+   {
+      experiments[[c]][[r]] = read.table(myfiles[r], header=TRUE, sep=" ", dec=".")
+      r = r+1
+   }
+   c = c+1
+}
+```
+
+Calculating the mean for each position in the trajectory:
+
+```{r}
+vecImgMeanError <- vector(mode = "list", length = configSize) #Experiments list (one for each config)
+vecImgMeanX <- vector(mode = "list", length = configSize) #Experiments list (one for each config)
+vecImgMeanY <- vector(mode = "list", length = configSize) #Experiments list (one for each config)
+
+c <- 1
+while (c <= configSize)#Configs
+{
+   i <- 1
+   while(i <= imgCount)
+   {
+      xyzError = 0
+      sumX = 0
+      sumY = 0
+      r <- 1
+      while(r <= nRuns)#Runs
+      {
+         xErrorMeters = 0
+         yErrorMeters = 0
+         zErrorMeters = 0
+         
+         sumX = sumX + experiments[[c]][[r]][["meanPX"]][i]
+         sumY = sumY + experiments[[c]][[r]][["meanPY"]][i]
+         xErrorMeters = ((experiments[[c]][[r]][["meanPX"]][i] * escalaPxM) - (groundTruth[["X (px)"]][i] * escalaPxM))^2
+         yErrorMeters = ((experiments[[c]][[r]][["meanPY"]][i] * escalaPxM) - (groundTruth[["Y (px)"]][i] * escalaPxM))^2
+         zErrorMeters = ((experiments[[c]][[r]][["meanPZ"]][i] * (altitudeFotoRefEscala/zEscalaMetros)) - groundTruth[["Z (m)"]][i])^2
+         
+         xyzError = xyzError + sqrt(xErrorMeters + yErrorMeters + zErrorMeters)
+         r = r+1
+      }
+      vecImgMeanError[[c]][[i]] = xyzError/nRuns
+      vecImgMeanX[[c]][[i]] = sumX/nRuns
+      vecImgMeanY[[c]][[i]] = sumY/nRuns
+      i = i+1
+   }
+   c = c+1
+}
+				
+```
+
+
+Ploting all configurations:
+```{r}
+library(ggplot2)
+library(ggpubr)
+library(gridExtra )
+
+vecDf <- vector(mode = "list", length = configSize)
+
+c <- 1
+while(c <= configSize)
+{
+   vecDf[[c]] <- data.frame( imgNum = 1:imgCount, cfName = c, error = matrix(unlist(vecImgMeanError[[c]]), nrow=length(vecImgMeanError[[c]]), byrow=T))
+   c = c+1
+}
+
+p <- ggplot(vecDf[[1]], aes(imgNum, error)) + geom_line(aes(color = vecConfigs[[1]])) + scale_color_manual(values = c(vecColor[2])) + theme_pubclean()
+
+c <- 2
+while(c <= configSize)
+{
+   p <- p + geom_line(data = vecDf[[c]]) + scale_color_manual(values = c(vecColor[c+1]))
+   c = c+1
+}
+
+p
+
+```
+
+
+
+Individual plots showing the mean error:
+
+```{r}
+c  <- 1
+while(c <= configSize)
+{
+   print(ggplot(vecDf[[c]], aes(imgNum, error)) + geom_line(aes(color = vecConfigs[[c]]), size=1) + scale_color_manual(values = c(vecColor[c+1])) + theme_pubclean()) 
+   c = c+1
+}
+```
+
+
+Ploting the error for all configurations:
+```{r}
+library(ggplot2)
+library(ggpubr)
+library(gridExtra )
+library(reshape2)
+
+df <- data.frame( imgNum = 1:imgCount , error1 = matrix(unlist(vecImgMeanError[[1]]), nrow=length(vecImgMeanError[[1]]), byrow=T))
+names(df)[2]<-paste(vecConfigs[1])
+
+c <- 2
+while (c <= configSize)
+{
+  df[[ vecConfigs[[c]] ]] <- matrix(unlist(vecImgMeanError[[2]]), nrow=length(vecImgMeanError[[2]]), byrow=T)
+  c = c+1
+}
+
+
+df.long<-melt(df,id.vars="imgNum")
+head(df.long)
+
+names(df.long) <- c("imgNum", "config", "Error")
+ggplot(df.long, aes(imgNum, Error, color=config)) + geom_line()
+dev.off()
+ggplot(df.long, aes(imgNum,Error,color=config)) + geom_line() + theme_pubclean()
+dev.off()
+
+
+(plot2 <- ggplot(aes(x = imgNum, y = Error, colour = config),
+                 data = df.long) +
+   geom_line() + geom_point() + theme_pubclean()) 
+dev.off()
+
+```
+
+Ploting the mean in the map:
+```{r}
+library(magick)
+library(ggplot2)
+library(ggmap)
+library(pixmap)
+library(fields)
+
+globalMap <- image_read("UFRGS_VET_V3_11_08_2011.jpg")
+scaleDiv <- 5
+
+scaledGlobalMap <- image_scale(globalMap, 4800/scaleDiv)
+img <- image_draw(scaledGlobalMap)
+img2 <- image_draw(scaledGlobalMap)
+
+trajPos <- 1
+gtSize = nrow(groundTruth)
+
+while (trajPos <= gtSize) 
+  {
+    symbols(groundTruth[trajPos,1]/scaleDiv, groundTruth[trajPos,2]/scaleDiv, squares = 5, add = TRUE, inches = FALSE, fg = "black", bg=vecColor[1])
+    trajPos = trajPos+1
+}
+
+c <- 1
+while (c <= configSize)
+{
+   trajPos <- 1
+   while (trajPos <= gtSize) 
+     {
+       symbols(vecImgMeanX[[c]][trajPos]/scaleDiv, vecImgMeanY[[c]][trajPos]/scaleDiv, squares = 5, add = TRUE, inches = FALSE, fg = "black", bg=vecColor[c+1])
+     
+       trajPos = trajPos+1
+   }
+   c = c+1
+}
+dev.off()
+
+myplot <- image_ggplot(img)
+myplot + ggtitle("Global Map: All experiments")
+```
