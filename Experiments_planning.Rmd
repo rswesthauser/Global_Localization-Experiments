@@ -102,6 +102,7 @@ groundTruth <- read.table("UFRGS_VET_100M_GT_390_613.txt",
 colnames(groundTruth) [1:4] <- c("X (px)","Y (px)","Z (m)","Yaw (deg)")
 ```
 
+
 Reading the experiment files:
 
 ```{r}
@@ -170,6 +171,7 @@ while (c <= configSize)#Configs
 
 
 Ploting all configurations:
+There are configurations that have an error bigger than 100 meters on some or all pictures/positions.
 ```{r}
 library(ggplot2)
 library(ggpubr)
@@ -184,12 +186,12 @@ while(c <= configSize)
    c = c+1
 }
 
-p <- ggplot(vecDf[[1]], aes(imgNum, error)) + geom_line(aes(color = vecConfigs[[1]])) + scale_color_manual(values = c(vecColor[2])) + theme_pubclean()
+p <- ggplot(vecDf[[1]], aes(imgNum, error)) + geom_line() + theme_pubclean()
 
 c <- 2
 while(c <= configSize)
 {
-   p <- p + geom_line(data = vecDf[[c]]) + scale_color_manual(values = c(vecColor[c+1]))
+   p <- p + geom_line(data = vecDf[[c]])
    c = c+1
 }
 
@@ -200,6 +202,8 @@ p
 
 
 Individual plots showing the mean error:
+Plotting the mean error on each image of the drone flight.
+The X axis are the image taken on each moment, while the Y axis represemnt the mean error in meters, of the estimation algorithm.
 
 ```{r}
 c  <- 1
@@ -233,16 +237,9 @@ df.long<-melt(df,id.vars="imgNum")
 head(df.long)
 
 names(df.long) <- c("imgNum", "config", "Error")
-ggplot(df.long, aes(imgNum, Error, color=config)) + geom_line()
-dev.off()
+
 ggplot(df.long, aes(imgNum,Error,color=config)) + geom_line() + theme_pubclean()
-dev.off()
 
-
-(plot2 <- ggplot(aes(x = imgNum, y = Error, colour = config),
-                 data = df.long) +
-   geom_line() + geom_point() + theme_pubclean()) 
-dev.off()
 
 ```
 
@@ -250,16 +247,12 @@ Ploting the mean in the map:
 ```{r}
 library(magick)
 library(ggplot2)
-library(ggmap)
-library(pixmap)
-library(fields)
 
 globalMap <- image_read("UFRGS_VET_V3_11_08_2011.jpg")
 scaleDiv <- 5
 
 scaledGlobalMap <- image_scale(globalMap, 4800/scaleDiv)
 img <- image_draw(scaledGlobalMap)
-img2 <- image_draw(scaledGlobalMap)
 
 trajPos <- 1
 gtSize = nrow(groundTruth)
@@ -282,8 +275,62 @@ while (c <= configSize)
    }
    c = c+1
 }
-dev.off()
 
-myplot <- image_ggplot(img)
+```
+
+
+
+```{r}
+myplot <- image_ggplot(img) 
 myplot + ggtitle("Global Map: All experiments")
 ```
+
+Configuration x Ground Truth
+```{r}
+library(magick)
+library(ggplot2)
+
+vecMaps <- vector(mode = "list", length = configSize)
+globalMap <- image_read("UFRGS_VET_V3_11_08_2011.jpg")
+scaleDiv <- 5
+
+scaledGlobalMap <- image_scale(globalMap, 4800/scaleDiv)
+img2 <- image_draw(scaledGlobalMap)
+
+c <- 1
+while (c <= configSize)
+{
+   #Drawing the Ground Truth
+   trajPos <- 1
+   gtSize = nrow(groundTruth)
+   
+   while (trajPos <= gtSize) 
+     {
+       symbols(groundTruth[trajPos,1]/scaleDiv, groundTruth[trajPos,2]/scaleDiv, squares = 5, add = TRUE, inches = FALSE, fg = "black", bg=vecColor[1])
+       trajPos = trajPos+1
+   }
+   
+   trajPos <- 1
+   while (trajPos <= gtSize) 
+     {
+       symbols(vecImgMeanX[[c]][trajPos]/scaleDiv, vecImgMeanY[[c]][trajPos]/scaleDiv, squares = 5, add = TRUE, inches = FALSE, fg = "black", bg=vecColor[c+1])
+     
+       trajPos = trajPos+1
+   }
+   
+   vecMaps[[c]] = img2
+    
+   c = c+1
+   img2 <- image_draw(scaledGlobalMap)
+}
+```
+
+```{r}
+c <- 1
+while (c <= configSize)
+{
+   print(myplot <- image_ggplot(vecMaps[[c]]) + ggtitle(vecConfigs[c]))
+   c = c+1
+}
+```
+
